@@ -1,0 +1,43 @@
+# HackTheBox: Artic
+
+## Category
+Web / Windows (or as appropriate)
+
+## Difficulty
+Medium (or as marked on HTB)
+
+## Description
+Brief overview of the box and main concepts exploited.
+
+## Steps to Solve
+
+### 1. Reconnaissance
+- nmap -sC -sV -oA artic 10.10.10.X
+
+### 2. Enumeration
+- What services/ports found?
+- Any web technologies/endpoints of interest?
+
+### 3. Exploitation
+- Describe the main initial exploit (e.g. CVE, misconfig, file upload, etc).
+- Key commands or scripts used.
+- How you gained the shell.
+
+### 4. Privilege Escalation
+- What did you enumerate to find escalation vector?
+- Commands/tools (e.g. winPEAS, manual checks)
+- Final exploit to escalate.
+
+### 5. Flags
+- User flag location and sample flag format.
+- Root flag location and sample.
+
+## Tools/Scripts Used
+- List tools (nmap, exploit.py, Seclists payloads, etc.)
+
+## Notes
+- Interesting observations or alternative routes.
+
+---
+
+**Disclaimer:** For educational purposes only!
